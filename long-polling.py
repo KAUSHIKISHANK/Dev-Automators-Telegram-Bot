@@ -25,6 +25,14 @@ NEWS_API_KEY = os.getenv("NEWS_API_KEY")  # Get from https://newsapi.org/registe
 if not NEWS_API_KEY:
     print("NEWS_API_KEY not found. Please set it in .env file.")
 
+CRIC_KEY = os.getenv("CRIC_KEY")  # Get from https://cricketdata.org/signup.aspx
+if not CRIC_KEY:
+    print("CRIC_KEY not found. Please set it in .env file.")
+
+OMDB_KEY = os.getenv("OMDB_KEY")  # Get from https://www.omdbapi.com/apikey.aspx
+if not OMDB_KEY:
+    print("OMDB_KEY not found. Please set it in .env file.")
+
 """
 Follow these steps to get your API key:
 
@@ -144,6 +152,21 @@ def get_joke():
         joke_data = response.json()
         return f"{joke_data['setup']}\n{joke_data['punchline']}"
     return "Sorry, I couldn't fetch a joke at the moment."
+
+
+def get_dog_fact():
+    """
+    This function fetches a random dog fact from the Dog API.
+    It returns the first fact from the API response.
+    """
+    dog_fact_url = "https://dog-api.kinduff.com/api/facts"
+    response = requests.get(dog_fact_url)
+    if response.status_code == 200:
+        data = response.json()
+        return data.get("facts", ["No fact available"])[
+            0
+        ]  # Safely fetching the first fact
+    return "Sorry, I couldn't fetch a dog fact at the moment."
 
 
 def get_github_profile(username):
@@ -341,46 +364,125 @@ def get_weather(city, country):
 
     return "Error: Unable to get weather update!"
 
+
 # Function to get live cricket scores
 def get_live_score():
-    api_key = "934e1c49-a774-4755-a6c3-a974b99d165d"  # Replace with a valid API key
-    url = f"https://api.cricapi.com/v1/currentMatches?apikey={api_key}&offset=0"
-    
+    url = f"https://api.cricapi.com/v1/currentMatches?apikey={CRIC_KEY}&offset=0"
+
     response = requests.get(url)
-    
+
     if response.status_code == 200:
         data = response.json()
         if data.get("status") == "success" and "data" in data:
             matches = data["data"]
-            live_matches = [m for m in matches if m.get("matchStarted") and not m.get("matchEnded")]
-            
+            live_matches = [
+                m for m in matches if m.get("matchStarted") and not m.get("matchEnded")
+            ]
+
             if live_matches:
-                match = live_matches[0]  # Get the first live match
+                match = None
+                for team in live_matches:
+                    if team.get("teamInfo", False):
+                        match = team
+                        if match.get("score", False):
+                            score = match.get("score")
+                            break
                 team1 = match["teamInfo"][0]["name"]
                 team2 = match["teamInfo"][1]["name"]
-                score = match.get("score", [])
-                
-                if score:
-                    team1_score = score[0].get("r", "N/A")
-                    team1_wickets = score[0].get("w", "N/A")
-                    team1_overs = score[0].get("o", "N/A")
-                    
-                    team2_score = score[1].get("r", "N/A") if len(score) > 1 else "N/A"
-                    team2_wickets = score[1].get("w", "N/A") if len(score) > 1 else "N/A"
-                    team2_overs = score[1].get("o", "N/A") if len(score) > 1 else "N/A"
-                    
-                    return (f"🏏 <b>Live Match:</b> {team1} vs {team2}\n\n"
-                            f"🔹 <b>{team1}:</b> {team1_score}/{team1_wickets} ({team1_overs} overs)\n"
-                            f"🔹 <b>{team2}:</b> {team2_score}/{team2_wickets} ({team2_overs} overs)\n\n"
-                            f"📢 <b>Status:</b> {match['status']}")
-                
-                return f"🏏 <b>Live Match:</b> {team1} vs {team2}\n\n📢 <b>Status:</b> {match['status']}"
+
+                team1_score = score[0].get("r", "NA")
+                team1_wickets = score[0].get("w", "NA")
+                team1_overs = score[0].get("o", "NA")
+
+                team2_score = score[1].get("r", "NA") if len(score) > 1 else "NA"
+                team2_wickets = score[1].get("w", "NA") if len(score) > 1 else "NA"
+                team2_overs = score[1].get("o", "NA") if len(score) > 1 else "NA"
+
+                return (
+                    f"🏏 <b>Live Match:</b> {team1} vs {team2}\n\n"
+                    f"🔹 <b>{team1}:</b> {team1_score}/{team1_wickets} ({team1_overs} overs)\n"
+                    f"🔹 <b>{team2}:</b> {team2_score}/{team2_wickets} ({team2_overs} overs)\n\n"
+                    f"📢 <b>Status:</b> {match['status']}"
+                )
+
             else:
                 return "⚠ No live matches currently. Check back later!"
         else:
             return "❌ Error fetching live scores!"
     else:
         return "❌ Unable to connect to live score API!"
+
+
+# This will give a random fun fact
+def get_fun_fact():
+    """
+    Fetches a random fun fact.
+    Returns the fact as a string.
+    """
+    fact_url = "https://uselessfacts.jsph.pl/random.json?language=en"
+    response = requests.get(fact_url)
+
+    if response.status_code == 200:
+        data = response.json()
+        return f"🤓 <b>Did You Know?</b>\n{data['text']}"
+    return "❌ Unable to fetch a fun fact at the moment."
+
+
+def get_movie_details(movie_name):
+    """
+    Fetches movie details from the OMDB API.
+    """
+    url = f"http://www.omdbapi.com/?t={movie_name}&apikey={OMDB_KEY}"
+
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if data["Response"] == "True":
+            movie_info = (
+                f"🎬 <b>{data['Title']}</b> ({data['Year']})\n"
+                f"📽 <b>Genre:</b> {data['Genre']}\n"
+                f"🎭 <b>Actors:</b> {data['Actors']}\n"
+                f"📊 <b>IMDB Rating:</b> {data['imdbRating']}\n"
+                f"📝 <b>Plot:</b> {data['Plot']}"
+            )
+            return movie_info
+        else:
+            return "❌ Movie not found! Please check the name and try again."
+    return "❌ Unable to fetch movie details at the moment."
+
+
+def veg():
+    base_url = "https://www.themealdb.com/api/json/v1/1/random.php"  # No API key needed for this free API
+    try:
+        response = requests.get(base_url, timeout=30)  # Added timeout to request
+        response.raise_for_status()
+        data = response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"Error fetching recipe: {e}")
+        return None
+
+    if data and data["meals"]:  # TheMealDB returns 'meals' array
+        meal = data["meals"][0]
+        recipe = {
+            "title": meal["strMeal"],
+            "ingredients": [],
+            "instructions": meal["strInstructions"],
+            "sourceUrl": meal["strSource"],
+            "image": meal["strMealThumb"],
+        }
+
+        for i in range(1, 21):
+            ingredient = meal[f"strIngredient{i}"]
+            measure = meal[f"strMeasure{i}"]
+            if ingredient and ingredient.strip():
+                recipe["ingredients"].append(
+                    f"- {measure} {ingredient}"
+                )  # Added bullet point for ingredient list
+
+        return recipe
+    else:
+        return None
+
 
 def main():
     update_id = None
@@ -401,6 +503,19 @@ def main():
             if text == "/start":
                 greeting = random.choice(greetings)
                 send_message(chat_id, greeting, message_id)
+
+            elif text.startswith("/movie "):
+                """
+                Fetches movie details from OMDB API using the given movie name.
+                Usage: /movie <movie_name>
+                """
+                movie_name = text.split("/movie ", 1)[1]
+                movie_details = get_movie_details(movie_name)
+                send_message(chat_id, movie_details, message_id)
+
+            elif text == "/fact":
+                fact = get_fun_fact()
+                send_message(chat_id, fact, message_id)
 
             elif text.startswith("/devian "):
                 """
@@ -457,6 +572,10 @@ def main():
                 news = get_news()
                 send_message(chat_id, news, message_id)
 
+            elif text == "/dogfact":
+                dog_fact = get_dog_fact()
+                send_message(chat_id, dog_fact, message_id)
+
             elif text == "/help":
                 """
                 Sends a list of available commands when the user types /help
@@ -497,7 +616,7 @@ def main():
             # Command handling for the bot
             elif text == "/livescore":
                 send_message(chat_id, get_live_score(), message_id)
-        
+
             elif text.startswith("/weather"):
                 """
                 Fetches weather details if the user provides a city and country.
@@ -523,6 +642,27 @@ def main():
                             "❌ Invalid format! Please enter as: <code>/weather City, Country</code>\nExample: <code>/weather Delhi, India</code>",
                             message_id,
                         )
+            elif text in ("/recipe"):
+                recipe_data = veg()
+                if recipe_data:
+                    recipe_text = f"""
+*Recipe:* {recipe_data['title']}
+
+*Ingredients:*
+{''.join(recipe_data['ingredients'])}
+
+*Instructions:*
+{recipe_data['instructions']}
+
+[Source]({recipe_data['sourceUrl']})
+[Recipe Image]({recipe_data['image']})
+                    """
+                    send_message(chat_id=chat_id, text=recipe_text)
+                else:
+                    send_message(
+                        chat_id=chat_id,
+                        text="Sorry, I couldn't find a vegetarian recipe right now. Please try again later.",
+                    )
 
             else:
                 send_message(chat_id, "Invalid message", message_id)
